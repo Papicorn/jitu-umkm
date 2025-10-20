@@ -1,29 +1,38 @@
+import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
-import pool from "./config/db";
+import { sequelize } from "./config/sequelize";
+import consignorRoutes from "./routes/consignorRoutes"
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response) => {
   res.json({ message: "Hello from TypeScript Express backend!" });
 });
 
-app.get("/users", async (_req, res, next) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM consignors");
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
+app.use("/consignors", consignorRoutes);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
   res.status(500).json({ message: "Internal server error" });
 });
 
-app.listen(port, () => {
-  console.log(`Server ready at http://localhost:${port}`);
-});
+async function startServer() {
+  try {
+    await sequelize.authenticate();
+    console.log("Database connection established");
+    // Uncomment kalau mau auto-sync schema (dev saja):
+    // await sequelize.sync({ alter: true });
+
+    app.listen(port, () => {
+      console.log(`Server ready at http://localhost:${port}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server", err);
+    process.exit(1);
+  }
+}
+
+startServer();
