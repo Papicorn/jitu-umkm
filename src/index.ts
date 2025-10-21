@@ -1,7 +1,10 @@
 import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import { sequelize } from "./config/sequelize";
-import consignorRoutes from "./routes/consignorRoutes"
+
+// ROUTER
+import consignorRoutes from "./routes/consignorRoutes";
+import storeRoutes from "./routes/storeRoutes";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -12,7 +15,7 @@ app.get("/", (_req: Request, res: Response) => {
   res.json({ message: "Hello from TypeScript Express backend!" });
 });
 
-app.use("/consignors", consignorRoutes);
+app.use("/api", consignorRoutes, storeRoutes);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);

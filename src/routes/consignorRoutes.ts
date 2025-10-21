@@ -3,6 +3,6 @@ import { getConsignors } from "../controllers/userController";
 
 const router = Router();
 
-router.get("/", getConsignors);
+router.post("/consignors", getConsignors);
 
 export default router;
