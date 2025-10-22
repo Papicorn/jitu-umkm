@@ -5,17 +5,14 @@ import { sequelize } from "./config/sequelize";
 // ROUTER
 import consignorRoutes from "./routes/consignorRoutes";
 import storeRoutes from "./routes/storeRoutes";
+import productRoutes from "./routes/productRoutes";
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
-app.get("/", (_req: Request, res: Response) => {
-  res.json({ message: "Hello from TypeScript Express backend!" });
-});
-
-app.use("/api", consignorRoutes, storeRoutes);
+app.use("/api/v1", consignorRoutes, storeRoutes, productRoutes);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
@@ -26,9 +23,6 @@ async function startServer() {
   try {
     await sequelize.authenticate();
     console.log("Database connection established");
-    // Uncomment kalau mau auto-sync schema (dev saja):
-    // await sequelize.sync({ alter: true });
-
     app.listen(port, () => {
       console.log(`Server ready at http://localhost:${port}`);
     });
