@@ -1,11 +1,12 @@
-import InputRegister from "@/components/auth/register/InputRegister"
-import Logo from "@/components/auth/register/Logo"
+import Logo from "@/components/auth/login/Logo"
+import InputLogin from "@/components/auth/login/InputLogin"
 
 export default function Login() {
   return (
     <main className="min-h-screen bg-[#FFCA40]">
-      <div className="mx-auto flex min-h-screen w-full md:max-w-[412px] max-w-xl flex-col">
-        Ini masuk ke login
+      <div className="w-full max-w-sm mx-auto flex-col pb-5">
+        <Logo />
+        <InputLogin />
         {/* komponen lain */}
       </div>
     </main>
