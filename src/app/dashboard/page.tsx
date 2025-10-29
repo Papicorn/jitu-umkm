@@ -9,7 +9,7 @@ import NavBot from "@/components/partials/NavBot"
 export default function Dashboard() {
   return (
     <main className="min-h-dvh bg-[#F4F7FE]">
-      <NavtopDashboard />
+      <NavtopDashboard title="Beranda" />
       <div className="w-full max-w-sm mx-auto flex-col pt-4 pb-27 space-y-4">
         <Welcomer />
         <NavigationDashboard />
