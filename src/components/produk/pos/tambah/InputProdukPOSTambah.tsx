@@ -21,7 +21,7 @@ function openDB(): Promise<IDBDatabase> {
       return reject(err);
     }
 
-    const req = indexedDB.open("jituDB", 1);
+    const req = indexedDB.open("jituDB", 2);
     console.log("[IndexedDB] membuka jituDB…");
 
     req.onupgradeneeded = () => {
