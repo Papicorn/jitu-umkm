@@ -7,15 +7,39 @@ import Link from "next/link";
 /** -- util kecil: buka/siapkan DB & object store -- */
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      const err = new Error("window tidak ada (bukan client)");
+      console.error(err);
+      return reject(err);
+    }
+
+    if (!("indexedDB" in window)) {
+      const err = new Error("Browser/WebView tidak mendukung IndexedDB");
+      console.error(err);
+      alert("❌ WebView kamu tidak mendukung IndexedDB.");
+      return reject(err);
+    }
+
     const req = indexedDB.open("jituDB", 1);
+
     req.onupgradeneeded = () => {
       const db = req.result;
+      console.log("[IndexedDB] onupgradeneeded, buat store products");
       if (!db.objectStoreNames.contains("products")) {
         db.createObjectStore("products", { keyPath: "id", autoIncrement: true });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+
+    req.onsuccess = () => {
+      console.log("[IndexedDB] DB open success");
+      resolve(req.result);
+    };
+
+    req.onerror = () => {
+      console.error("[IndexedDB] open error:", req.error);
+      alert("❌ Gagal membuka IndexedDB: " + (req.error?.message ?? req.error));
+      reject(req.error);
+    };
   });
 }
 
