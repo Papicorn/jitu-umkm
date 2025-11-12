@@ -10,22 +10,25 @@ function openDB(): Promise<IDBDatabase> {
     if (typeof window === "undefined") {
       const err = new Error("window tidak ada (bukan client)");
       console.error(err);
+      alert("❌ window tidak ada (bukan client).");
       return reject(err);
     }
 
     if (!("indexedDB" in window)) {
       const err = new Error("Browser/WebView tidak mendukung IndexedDB");
       console.error(err);
-      alert("❌ WebView kamu tidak mendukung IndexedDB.");
+      alert("❌ WebView / browser tidak mendukung IndexedDB.");
       return reject(err);
     }
 
     const req = indexedDB.open("jituDB", 1);
+    console.log("[IndexedDB] membuka jituDB…");
 
     req.onupgradeneeded = () => {
       const db = req.result;
-      console.log("[IndexedDB] onupgradeneeded, buat store products");
+      console.log("[IndexedDB] onupgradeneeded");
       if (!db.objectStoreNames.contains("products")) {
+        console.log("[IndexedDB] buat objectStore products");
         db.createObjectStore("products", { keyPath: "id", autoIncrement: true });
       }
     };
@@ -37,7 +40,10 @@ function openDB(): Promise<IDBDatabase> {
 
     req.onerror = () => {
       console.error("[IndexedDB] open error:", req.error);
-      alert("❌ Gagal membuka IndexedDB: " + (req.error?.message ?? req.error));
+      const msg = req.error
+        ? `${req.error.name ?? "Error"}: ${req.error.message ?? req.error.toString()}`
+        : "Unknown error";
+      alert("❌ Gagal membuka IndexedDB: " + msg);
       reject(req.error);
     };
   });
@@ -110,10 +116,15 @@ export default function InputProdukPOSTambah() {
       });
       alert("✅ Produk tersimpan offline di perangkat!");
       form.reset();
-    } catch (err) {
-      console.error(err);
-      alert("❌ Gagal menyimpan ke data lokal.");
+    } catch (err: any) {
+        console.error("Gagal simpan:", err);
+        const msg =
+            err?.name || err?.message
+            ? `${err?.name ?? ""} ${err?.message ?? ""}`
+            : String(err);
+        alert("❌ Gagal menyimpan ke data lokal: " + msg);
     }
+
   };
 
   return (
