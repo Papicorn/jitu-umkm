@@ -15,7 +15,7 @@ export default function ProdukProdukPOS() {
   const [produkList, setProdukList] = useState<Produk[]>([]);
 
   useEffect(() => {
-    const req = indexedDB.open("jituDB", 1);
+    const req = indexedDB.open("jituDB", 2);
 
     req.onsuccess = () => {
       const db = req.result;
