@@ -11,30 +11,23 @@ interface Produk {
   gambar_base64?: string | null;
 }
 
+const STORAGE_KEY = "jitu_products";
+
 export default function ProdukProdukPOS() {
   const [produkList, setProdukList] = useState<Produk[]>([]);
 
   useEffect(() => {
-    const req = indexedDB.open("jituDB", 2);
+    if (typeof window === "undefined") return;
+    
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
 
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction("products", "readonly");
-      const store = tx.objectStore("products");
-      const getAll = store.getAll();
-
-      getAll.onsuccess = () => {
-        setProdukList(getAll.result as Produk[]);
-      };
-
-      getAll.onerror = () => {
-        console.error("Gagal ambil data produk dari IndexedDB");
-      };
-    };
-
-    req.onerror = () => {
-      console.error("Gagal buka IndexedDB");
-    };
+      const data = JSON.parse(raw);
+      setProdukList(data);
+    } catch (e) {
+      console.error("Gagal membaca localStorage:", e);
+    }
   }, []);
 
   const hasData = produkList.length > 0;
@@ -56,45 +49,27 @@ export default function ProdukProdukPOS() {
             >
               <div className="w-full relative aspect-square">
                 <Image
-                  // kalau ada gambar dari IndexedDB pakai itu, kalau tidak pakai placeholder
                   src={p.gambar_base64 || "/assets/image/ubi-ungu.jpg"}
-                  className="object-cover"
                   alt={p.nama_produk}
                   fill
+                  className="object-cover"
                 />
                 <div className="absolute top-2 left-2 bg-white text-xs text-zinc-700 rounded p-1">
-                  {p.stok ?? 0}
+                  {p.stok}
                 </div>
               </div>
               <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
                 <p className="text-zinc-700 leading-4">{p.nama_produk}</p>
                 <p className="font-bold text-zinc-700">
-                  Rp{Number(p.harga_jual || 0).toLocaleString("id-ID")}
+                  Rp{Number(p.harga_jual).toLocaleString("id-ID")}
                 </p>
               </div>
             </div>
           ))
         ) : (
-          // fallback: bisa tampilkan produk dummy kalau mau
-          <>
-            <div className="bg-white rounded-md shadow-sm overflow-hidden flex flex-col">
-              <div className="w-full relative aspect-square">
-                <Image
-                  src="/assets/image/ubi-ungu.jpg"
-                  className="object-cover"
-                  alt="Keripik Ubi Ungu"
-                  fill
-                />
-                <div className="absolute top-2 left-2 bg-white text-xs text-zinc-700 rounded p-1">
-                  20
-                </div>
-              </div>
-              <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
-                <p className="text-zinc-700 leading-4">Keripik Ubi Ungu</p>
-                <p className="font-bold text-zinc-700">Rp35.000</p>
-              </div>
-            </div>
-          </>
+          <div className="text-sm text-center text-zinc-400 col-span-3 py-4">
+            Tidak ada produk.
+          </div>
         )}
       </div>
     </div>

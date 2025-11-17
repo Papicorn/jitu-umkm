@@ -13,7 +13,7 @@ export default function NavBot() {
                 <div className="grid grid-cols-4 text-zinc-700">
 
                     <Link href="/dashboard">
-                        <div className={`${ pathname === '/dashboard' ? 'bg-white shadow-inner' : '' } active:bg-[rgba(22,22,22,0.10)] px-2 py-4 shadow rounded-tl-2xl rounded-tr-2xl`}>
+                        <div className={`${ pathname === '/dashboard' ? 'bg-white shadow-inner' : '' } active:bg-[rgba(22,22,22,0.10)] px-2 py-4 rounded-tl-2xl rounded-tr-2xl`}>
                             <div className="flex-row text-center">
                                 <div className="relative h-7 mb-2">
                                     <Image src="/assets/image/beranda.svg" alt="Beranda icon" fill />
@@ -36,7 +36,7 @@ export default function NavBot() {
                         </div>
                     </Link>
 
-                    <Link href="/transaksi">
+                    <Link href="/transaksi/pos">
                     <div className={` ${ pathname.startsWith('/transaksi') ? 'bg-white shadow-inner' : '' } px-2 py-4 active:bg-[rgba(22,22,22,0.10)] rounded-tl-2xl rounded-tr-2xl`}>
                         <div className="flex-row text-center">
                             <div className="relative h-7 mb-2">

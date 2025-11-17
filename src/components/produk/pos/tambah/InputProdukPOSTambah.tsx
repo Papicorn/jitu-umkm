@@ -1,55 +1,32 @@
 "use client";
 
-import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-/** -- util kecil: buka/siapkan DB & object store -- */
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      const err = new Error("window tidak ada (bukan client)");
-      console.error(err);
-      alert("❌ window tidak ada (bukan client).");
-      return reject(err);
-    }
+// key untuk nyimpen data produk di localStorage
+const STORAGE_KEY = "jitu_products";
 
-    if (!("indexedDB" in window)) {
-      const err = new Error("Browser/WebView tidak mendukung IndexedDB");
-      console.error(err);
-      alert("❌ WebView / browser tidak mendukung IndexedDB.");
-      return reject(err);
-    }
-
-    const req = indexedDB.open("jituDB", 2);
-    console.log("[IndexedDB] membuka jituDB…");
-
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      console.log("[IndexedDB] onupgradeneeded");
-      if (!db.objectStoreNames.contains("products")) {
-        console.log("[IndexedDB] buat objectStore products");
-        db.createObjectStore("products", { keyPath: "id", autoIncrement: true });
-      }
-    };
-
-    req.onsuccess = () => {
-      console.log("[IndexedDB] DB open success");
-      resolve(req.result);
-    };
-
-    req.onerror = () => {
-      console.error("[IndexedDB] open error:", req.error);
-      const msg = req.error
-        ? `${req.error.name ?? "Error"}: ${req.error.message ?? req.error.toString()}`
-        : "Unknown error";
-      alert("❌ Gagal membuka IndexedDB: " + msg);
-      reject(req.error);
-    };
-  });
+// ambil list produk dari localStorage
+function getStoredProducts() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
 
-/** optional: ubah file gambar ke base64 biar bisa disimpan di IndexedDB */
+// simpan 1 produk ke localStorage (append ke array lama)
+function saveProductToLocal(data: any) {
+  if (typeof window === "undefined") return;
+  const list = getStoredProducts();
+  list.push(data);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+/** optional: ubah file gambar ke base64 */
 function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -60,11 +37,6 @@ function toBase64(file: File): Promise<string> {
 }
 
 export default function InputProdukPOSTambah() {
-  // init DB sekali di mount (optional, sekadar memastikan)
-  useEffect(() => {
-    openDB().catch(console.error);
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -82,7 +54,6 @@ export default function InputProdukPOSTambah() {
     let gambar_base64: string | null = null;
     if (gambarInput?.files && gambarInput.files[0]) {
       const file = gambarInput.files[0];
-      // hindari file besar: batasi misal 300 KB
       if (file.size <= 300 * 1024) {
         gambar_base64 = await toBase64(file);
       }
@@ -94,6 +65,7 @@ export default function InputProdukPOSTambah() {
     }
 
     const data = {
+      id: Date.now(), // id sederhana
       nama_produk,
       deskripsi,
       kategori,
@@ -101,30 +73,18 @@ export default function InputProdukPOSTambah() {
       harga_modal,
       harga_jual,
       stok,
-      gambar_base64,       // bisa null
+      gambar_base64, // bisa null
       created_at: new Date().toISOString(),
     };
 
     try {
-      const db = await openDB();
-      const tx = db.transaction("products", "readwrite");
-      tx.objectStore("products").add(data);
-      await new Promise<void>((res, rej) => {
-        tx.oncomplete = () => res();
-        tx.onerror = () => rej(tx.error);
-        tx.onabort = () => rej(tx.error);
-      });
-      alert("✅ Produk tersimpan offline di perangkat!");
+      saveProductToLocal(data);
+      alert("✅ Produk tersimpan di data lokal (localStorage)!");
       form.reset();
     } catch (err: any) {
-        console.error("Gagal simpan:", err);
-        const msg =
-            err?.name || err?.message
-            ? `${err?.name ?? ""} ${err?.message ?? ""}`
-            : String(err);
-        alert("❌ Gagal menyimpan ke data lokal: " + msg);
+      console.error("Gagal simpan:", err);
+      alert("❌ Gagal menyimpan ke data lokal.");
     }
-
   };
 
   return (
@@ -151,7 +111,14 @@ export default function InputProdukPOSTambah() {
         <label htmlFor="nama_produk" className="flex flex-col space-y-1">
           <span className="text-sm">Nama Produk</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm">
-            <input type="text" name="nama_produk" id="nama_produk" className="outline-0 w-full text-sm" placeholder="Masukkan nama produk" required />
+            <input
+              type="text"
+              name="nama_produk"
+              id="nama_produk"
+              className="outline-0 w-full text-sm"
+              placeholder="Masukkan nama produk"
+              required
+            />
           </div>
         </label>
 
@@ -159,7 +126,13 @@ export default function InputProdukPOSTambah() {
         <label htmlFor="deskripsi" className="flex flex-col space-y-1">
           <span className="text-sm">Deskripsi</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm">
-            <textarea name="deskripsi" id="deskripsi" className="text-sm w-full outline-0" rows={4} placeholder="Masukkan deskripsi"></textarea>
+            <textarea
+              name="deskripsi"
+              id="deskripsi"
+              className="text-sm w-full outline-0"
+              rows={4}
+              placeholder="Masukkan deskripsi"
+            />
           </div>
         </label>
 
@@ -167,7 +140,12 @@ export default function InputProdukPOSTambah() {
         <label htmlFor="kategori" className="flex flex-col space-y-1">
           <span className="text-sm">Kategori</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm">
-            <select className="outline-0 w-full text-sm text-zinc-700" id="kategori" name="kategori" defaultValue="">
+            <select
+              className="outline-0 w-full text-sm text-zinc-700"
+              id="kategori"
+              name="kategori"
+              defaultValue=""
+            >
               <option value="" disabled>Pilih Produk</option>
               <option value="makanan">Makanan</option>
               <option value="minuman">Minuman</option>
@@ -182,8 +160,12 @@ export default function InputProdukPOSTambah() {
         <label htmlFor="satuan" className="flex flex-col space-y-1">
           <span className="text-sm">Satuan</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm">
-            {/* NOTE: id & name harus 'satuan' (sebelumnya dobel 'kategori') */}
-            <select className="outline-0 w-full text-sm text-zinc-700" id="satuan" name="satuan" defaultValue="">
+            <select
+              className="outline-0 w-full text-sm text-zinc-700"
+              id="satuan"
+              name="satuan"
+              defaultValue=""
+            >
               <option value="" disabled>Pilih Satuan</option>
               <option value="pcs">Pcs</option>
               <option value="kg">KG</option>
@@ -199,7 +181,15 @@ export default function InputProdukPOSTambah() {
           <span className="text-sm">Harga (HPP)</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm space-x-1">
             <p className="text-sm">Rp</p>
-            <input type="number" name="harga_modal" id="harga_modal" className="outline-0 w-full text-sm" placeholder="8000" min="0" step="1" />
+            <input
+              type="number"
+              name="harga_modal"
+              id="harga_modal"
+              className="outline-0 w-full text-sm"
+              placeholder="8000"
+              min="0"
+              step="1"
+            />
           </div>
         </label>
 
@@ -208,7 +198,15 @@ export default function InputProdukPOSTambah() {
           <span className="text-sm">Harga Jual</span>
           <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm space-x-1">
             <p className="text-sm">Rp</p>
-            <input type="number" name="harga_jual" id="harga_jual" className="outline-0 w-full text-sm" placeholder="10000" min="0" step="1" />
+            <input
+              type="number"
+              name="harga_jual"
+              id="harga_jual"
+              className="outline-0 w-full text-sm"
+              placeholder="10000"
+              min="0"
+              step="1"
+            />
           </div>
         </label>
 
@@ -216,17 +214,31 @@ export default function InputProdukPOSTambah() {
         <label htmlFor="stok" className="flex flex-col space-y-1">
           <span className="text-sm">Kelola Stok</span>
           <div className="bg-white w-full py-3 px-3 rounded-lg flex items-center shadow-sm space-x-1">
-            <input type="number" name="stok" id="stok" className="outline-0 w-full text-sm" placeholder="Masukkan Stok" min="0" step="1" />
+            <input
+              type="number"
+              name="stok"
+              id="stok"
+              className="outline-0 w-full text-sm"
+              placeholder="Masukkan Stok"
+              min="0"
+              step="1"
+            />
           </div>
         </label>
 
         <div className="grid grid-cols-2 gap-7 mt-3">
           <Link href="/produk/pos" className="w-full">
-            <button type="button" className="bg-transparent border w-full active:bg-[#ffc9c9] active:text-zinc-600 border-red-600 rounded py-3 text-sm shadow-sm text-red-600">
+            <button
+              type="button"
+              className="bg-transparent border w-full active:bg-[#ffc9c9] active:text-zinc-600 border-red-600 rounded py-3 text-sm shadow-sm text-red-600"
+            >
               Batal
             </button>
           </Link>
-          <button type="submit" className="bg-[#FFCA40] active:bg-[#fbbd21] border border-zinc-600 rounded py-3 text-sm shadow-sm">
+          <button
+            type="submit"
+            className="bg-[#FFCA40] active:bg-[#fbbd21] border border-zinc-600 rounded py-3 text-sm shadow-sm"
+          >
             Simpan
           </button>
         </div>

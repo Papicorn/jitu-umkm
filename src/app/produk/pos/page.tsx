@@ -8,7 +8,7 @@ import AddButtonProdukPOS from "@/components/produk/pos/AddButtonProdukPOS"
 export default function TransaksiPOS() {
     return (
         <main className="min-h-dvh bg-[#F4F7FE]">
-            <NavtopDashboard title="Produk" showBackButton = {true} backUrl = "/dashboard" />
+            <NavtopDashboard title="Produk" showBackButton = {false} backUrl = "/dashboard" />
             <div className="w-full max-w-sm mx-auto flex-col pt-4 pb-27 space-y-4">
                 <NavigationProdukPOS />
                 <SearchFilterProdukPOS />
