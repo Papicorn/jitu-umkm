@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { decreasePosProductStock } from "@/lib/konsinyasiStorage";
 
 interface Produk {
   id: number;
@@ -18,24 +19,69 @@ interface CartItem {
   qty: number;
 }
 
-const STORAGE_KEY = "jitu_products";
+type Step = "idle" | "detail" | "payment" | "success";
+type PaymentMethod = "tunai" | "transfer";
 
-export default function ProdukProdukPOS() {
+interface Receipt {
+  items: CartItem[];
+  subtotal: number;
+  totalItems: number;
+  paymentMethod: PaymentMethod;
+}
+
+const STORAGE_KEY = "jitu_products";
+const SEARCH_EVENT = "pos-search-term";
+
+const formatCurrency = (value: number) =>
+  `Rp${Number(value || 0).toLocaleString("id-ID")}`;
+
+export default function ProdukTransaksiPOS() {
   const [produkList, setProdukList] = useState<Produk[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentStep, setCurrentStep] = useState<Step>("idle");
+  const [lastReceipt, setLastReceipt] = useState<Receipt | null>(null);
 
-  // ambil data produk dari localStorage
-  useEffect(() => {
+  const loadProduk = () => {
     if (typeof window === "undefined") return;
-
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        setProdukList([]);
+        return;
+      }
       setProdukList(JSON.parse(raw));
     } catch (e) {
       console.error("Gagal membaca localStorage:", e);
     }
+  };
+
+  useEffect(() => {
+    loadProduk();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<string>;
+      setSearchTerm((custom.detail || "").toLowerCase());
+    };
+    window.addEventListener(SEARCH_EVENT, handler);
+    return () => window.removeEventListener(SEARCH_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    if (cart.length === 0 && currentStep !== "success") {
+      setCurrentStep("idle");
+    }
+  }, [cart.length, currentStep]);
+
+  const filteredProdukList = useMemo(() => {
+    if (!searchTerm) return produkList;
+    return produkList.filter((p) =>
+      p.nama_produk.toLowerCase().includes(searchTerm)
+    );
+  }, [produkList, searchTerm]);
 
   const isInCart = (id: number) => cart.some((c) => c.id === id);
 
@@ -43,10 +89,8 @@ export default function ProdukProdukPOS() {
     setCart((prev) => {
       const exist = prev.find((item) => item.id === p.id);
       if (exist) {
-        // kalau sudah ada → remove
         return prev.filter((item) => item.id !== p.id);
       }
-      // kalau belum ada → add dengan qty 1
       return [
         ...prev,
         {
@@ -62,10 +106,14 @@ export default function ProdukProdukPOS() {
   const changeQty = (id: number, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) =>
-          item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-        )
-        .filter((item) => item.qty > 0)
+        .map((item) => {
+          if (item.id !== id) return item;
+          const produk = produkList.find((p) => p.id === id);
+          const stok = produk?.stok ?? Number.MAX_SAFE_INTEGER;
+          const nextQty = Math.min(stok, Math.max(0, item.qty + delta));
+          return nextQty === 0 ? null : { ...item, qty: nextQty };
+        })
+        .filter((item): item is CartItem => Boolean(item))
     );
   };
 
@@ -73,110 +121,342 @@ export default function ProdukProdukPOS() {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const hasData = produkList.length > 0;
-
-  const totalHarga = cart.reduce(
-    (sum, item) => sum + item.qty * item.harga_jual,
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.qty * (item.harga_jual || 0),
     0
-);
+  );
+  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+  const hasData = filteredProdukList.length > 0;
+
+  const handleProceedToDetail = () => {
+    if (cart.length === 0) return;
+    setCurrentStep("detail");
+  };
+
+  const handleOpenPayment = () => {
+    if (cart.length === 0) return;
+    setCurrentStep("payment");
+  };
+
+  const handleSelectPayment = (method: PaymentMethod) => {
+    if (cart.length === 0) return;
+    cart.forEach((item) => decreasePosProductStock(item.id, item.qty));
+    loadProduk();
+    setLastReceipt({
+      items: cart.map((item) => ({ ...item })),
+      subtotal,
+      totalItems,
+      paymentMethod: method,
+    });
+    setCurrentStep("success");
+    setCart([]);
+  };
+
+  const handleResetTransaction = () => {
+    setLastReceipt(null);
+    setCurrentStep("idle");
+  };
+
+  const paymentLabel = (method: PaymentMethod) =>
+    method === "tunai" ? "Tunai" : "Transfer/Kredit";
+
+  const orderList = (items: CartItem[]) => (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="flex items-center justify-between text-sm text-zinc-800"
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-zinc-100">
+              <Image
+                src={
+                  produkList.find((p) => p.id === item.id)?.gambar_base64 ||
+                  "/assets/image/ubi-ungu.jpg"
+                }
+                alt={item.nama_produk}
+                fill
+                className="object-cover"
+              />
+            </div>
+            <div>
+              <p className="font-semibold leading-5">{item.nama_produk}</p>
+              <p className="text-xs text-zinc-500">
+                {formatCurrency(item.harga_jual)} × {item.qty}
+              </p>
+            </div>
+          </div>
+          <p className="font-semibold">
+            {formatCurrency(item.harga_jual * item.qty)}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-4 pb-32">
       {!hasData && (
         <p className="text-sm text-zinc-500 mb-3">
           Belum ada produk tersimpan. Tambahkan produk di halaman input.
         </p>
       )}
 
-      {/* GRID PRODUK */}
+      {hasData && filteredProdukList.length === 0 && (
+        <p className="text-sm text-zinc-500 mb-3">
+          Produk tidak ditemukan. Coba kata kunci lain.
+        </p>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
-        {hasData &&
-          produkList.map((p) => (
-            <label key={p.id} htmlFor={`produk-${p.id}`} className="block">
-              {/* checkbox hidden, tapi jadi "peer" buat styling card */}
-              <input
-                type="checkbox"
-                id={`produk-${p.id}`}
-                name="transaksi"
-                className="peer hidden"
-                checked={isInCart(p.id)}
-                onChange={() => toggleCartItem(p)}
-              />
+        {filteredProdukList.map((p) => (
+          <label key={p.id} htmlFor={`produk-${p.id}`} className="block">
+            <input
+              type="checkbox"
+              id={`produk-${p.id}`}
+              name="transaksi"
+              className="peer hidden"
+              checked={isInCart(p.id)}
+              onChange={() => toggleCartItem(p)}
+            />
 
-              <div
-                className="
-                  rounded-md shadow-sm overflow-hidden flex flex-col
-                  bg-white border border-transparent
-                peer-checked:border-amber-500
-                  transition
-                "
-              >
-                <div className="w-full relative aspect-square">
-                  <Image
-                    src={p.gambar_base64 || "/assets/image/ubi-ungu.jpg"}
-                    className="object-cover"
-                    alt={p.nama_produk}
-                    fill
-                  />
-                  <div className="absolute top-2 left-2 bg-white text-xs text-zinc-700 rounded p-1">
-                    {p.stok ?? 0}
-                  </div>
-                </div>
-                <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
-                  <p className="text-zinc-700 leading-4">{p.nama_produk}</p>
-                  <p className="font-bold text-zinc-700">
-                    Rp{Number(p.harga_jual || 0).toLocaleString("id-ID")}
-                  </p>
-                </div>
-              </div>
-            </label>
-          ))}
-      </div>
-
-      {/* LIST ITEM TERPILIH (CART) */}
-      {cart.length > 0 && (
-        <div className="mt-4 bg-[#FFCA40] rounded-xl fixed bottom-18 right-0 left-0 pt-3 pb-7 px-3 space-y-2">
-          {cart.map((item) => (
             <div
-              key={item.id}
-              className="bg-white rounded-lg px-3 py-2 flex items-center justify-between text-sm"
+              className="
+                rounded-md shadow-sm overflow-hidden flex flex-col
+                bg-white border border-transparent peer-checked:border-amber-500
+                transition
+              "
             >
-              {/* nama + tombol hapus */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => removeFromCart(item.id)}
-                  className="w-8 h-8 flex items-center text-zinc-800 justify-center rounded bg-zinc-100 text-xs"
-                >
-                  ✕
-                </button>
-                <span className="font-medium text-zinc-800">
-                  {item.nama_produk}
-                </span>
+              <div className="w-full relative aspect-square">
+                <Image
+                  src={p.gambar_base64 || "/assets/image/ubi-ungu.jpg"}
+                  className="object-cover"
+                  alt={p.nama_produk}
+                  fill
+                />
+                <div className="absolute top-2 left-2 bg-white text-xs text-zinc-700 rounded p-1">
+                  {p.stok ?? 0}
+                </div>
               </div>
-
-              {/* kontrol qty */}
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => changeQty(item.id, -1)}
-                  className="w-8 h-8 flex items-center text-zinc-800 justify-center rounded bg-zinc-100 text-xs"
-                >
-                  −
-                </button>
-                <span className="w-6 text-center text-zinc-800 text-xs">{item.qty}</span>
-                <button
-                  type="button"
-                  onClick={() => changeQty(item.id, 1)}
-                  className="w-8 h-8 flex items-center text-zinc-800 justify-center rounded bg-zinc-100 text-xs"
-                >
-                  +
-                </button>
+              <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
+                <p className="text-zinc-700 leading-4">{p.nama_produk}</p>
+                <p className="font-bold text-zinc-700">
+                  {formatCurrency(p.harga_jual)}
+                </p>
               </div>
             </div>
-          ))}
-          <div className="bg-white rounded-lg p-3 text-right font-bold text-zinc-800">
-            Total: Rp{totalHarga.toLocaleString("id-ID")} {'>'}
+          </label>
+        ))}
+      </div>
+
+      {cart.length > 0 && (
+        <div className="fixed bottom-25 left-0 right-0 px-3 z-20">
+          <div className="bg-[#FFCA40] rounded-3xl p-3 space-y-3 shadow-lg">
+            <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+              {cart.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-lg px-3 py-2 flex items-center justify-between text-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-100 text-xs text-zinc-700"
+                    >
+                      x
+                    </button>
+                    <span className="font-medium text-zinc-800">
+                      {item.nama_produk}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => changeQty(item.id, -1)}
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-100 text-xs text-zinc-700"
+                    >
+                      -
+                    </button>
+                    <span className="w-6 text-center text-zinc-800 text-xs">
+                      {item.qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => changeQty(item.id, 1)}
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-100 text-xs text-zinc-700"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-700">{totalItems} Item</p>
+                <p className="text-xl font-semibold text-zinc-900">
+                  {formatCurrency(subtotal)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleProceedToDetail}
+                className="bg-zinc-900 text-white rounded-full px-6 py-2 text-sm font-semibold"
+              >
+                Bayar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentStep === "detail" && cart.length > 0 && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end justify-center z-30 px-3 pb-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">Rincian Pesanan</p>
+              <button
+                type="button"
+                onClick={() => setCurrentStep("idle")}
+                className="text-sm text-zinc-500"
+              >
+                Tutup
+              </button>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              {cart.map((item) => (
+                <div
+                  key={item.id}
+                  className="border rounded-lg px-3 py-2 flex items-center justify-between text-sm"
+                >
+                  <div>
+                    <p className="font-semibold text-zinc-800">
+                      {item.nama_produk}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {formatCurrency(item.harga_jual)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => changeQty(item.id, -1)}
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-100 text-xs text-zinc-700"
+                    >
+                      -
+                    </button>
+                    <span className="w-6 text-center text-zinc-800 text-xs">
+                      {item.qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => changeQty(item.id, 1)}
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-100 text-xs text-zinc-700"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.id)}
+                      className="ml-2 text-xs text-red-500"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between text-sm font-semibold text-zinc-800">
+              <span>{totalItems} Item</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenPayment}
+              className="w-full bg-[#FFCA40] rounded-xl border border-zinc-900 py-3 font-semibold text-sm"
+            >
+              Bayar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {currentStep === "payment" && cart.length > 0 && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end justify-center z-40 px-3 pb-6">
+          <div className="w-full max-w-sm space-y-4">
+            <div className="bg-white rounded-3xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-sm">Rincian Pesanan</p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep("detail")}
+                  className="text-sm text-zinc-500"
+                >
+                  Kembali
+                </button>
+              </div>
+              {orderList(cart)}
+              <div className="flex items-center justify-between text-sm font-semibold text-zinc-800 pt-2 border-t">
+                <span>Total</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+            </div>
+            <div className="bg-white rounded-3xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-center">
+                Metode Pembayaran
+              </p>
+              <button
+                type="button"
+                onClick={() => handleSelectPayment("tunai")}
+                className="w-full border rounded-xl py-3 px-4 text-left text-sm font-semibold text-zinc-800"
+              >
+                Tunai
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPayment("transfer")}
+                className="w-full border rounded-xl py-3 px-4 text-left text-sm font-semibold text-zinc-800"
+              >
+                Transfer/Kredit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentStep === "success" && lastReceipt && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 space-y-4 text-sm text-zinc-700">
+            <div className="w-14 h-14 mx-auto rounded-full bg-green-100 flex items-center justify-center text-2xl text-green-600">
+              ✓
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-zinc-800">Detail Transaksi</p>
+              <p className="text-xs text-zinc-500">Transaksi POS Berhasil</p>
+            </div>
+            {orderList(lastReceipt.items)}
+            <div className="border-t pt-3 space-y-1 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Subtotal</span>
+                <span>{formatCurrency(lastReceipt.subtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Metode Pembayaran</span>
+                <span>{paymentLabel(lastReceipt.paymentMethod)}</span>
+              </div>
+              <div className="flex items-center justify-between font-semibold text-zinc-900">
+                <span>Total Bayar</span>
+                <span>{formatCurrency(lastReceipt.subtotal)}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetTransaction}
+              className="w-full bg-[#FFCA40] border border-zinc-900 rounded-xl py-3 font-semibold"
+            >
+              Transaksi Baru
+            </button>
           </div>
         </div>
       )}

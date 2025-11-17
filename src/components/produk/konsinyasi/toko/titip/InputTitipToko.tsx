@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { addTitipan, getStoreById } from "@/lib/konsinyasiStorage";
+import { addTitipan, decreasePosProductStock, getStoreById } from "@/lib/konsinyasiStorage";
 
 const POS_STORAGE_KEY = "jitu_products";
 
@@ -93,6 +93,7 @@ export default function InputTitipToko({ storeId }: Props) {
         stokTitip: stok_jual,
         estimasi,
       });
+      decreasePosProductStock(selectedProduk.id, stok_jual);
       alert("✅ Titipan berhasil disimpan.");
       router.push(`/produk/konsinyasi/toko?id=${resolvedStoreId}`);
     } catch (err) {
