@@ -25,12 +25,18 @@ export type TitipanEntry = {
   stokTitip: number;
   estimasi: string;
   status: TitipanStatus;
+  soldQuantity?: number;
+  grossRevenue?: number;
+  netRevenue?: number;
+  komisiAmount?: number;
+  remainingStock?: number;
   created_at: string;
   updated_at: string;
 };
 
 const STORES_KEY = "jitu_consignment_stores";
 const TITIPAN_KEY = "jitu_consignment_titipan";
+const POS_PRODUCTS_KEY = "jitu_products";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -157,4 +163,59 @@ export function updateTitipanStatus(id: string, status: TitipanStatus): TitipanE
   list[idx] = updated;
   writeStorage(TITIPAN_KEY, list);
   return updated;
+}
+
+export type CompleteTitipanPayload = {
+  soldQuantity: number;
+  grossRevenue: number;
+  netRevenue: number;
+  komisiAmount: number;
+};
+
+export function completeTitipan(
+  id: string,
+  payload: CompleteTitipanPayload
+): TitipanEntry | null {
+  const list = getTitipan();
+  const idx = list.findIndex((item) => item.id === id);
+  if (idx === -1) return null;
+  const now = new Date().toISOString();
+  const entry = list[idx];
+  const remaining = Math.max(0, entry.stokTitip - payload.soldQuantity);
+
+  const updated: TitipanEntry = {
+    ...entry,
+    status: "selesai",
+    soldQuantity: payload.soldQuantity,
+    grossRevenue: payload.grossRevenue,
+    netRevenue: payload.netRevenue,
+    komisiAmount: payload.komisiAmount,
+    remainingStock: remaining,
+    updated_at: now,
+  };
+
+  list[idx] = updated;
+  writeStorage(TITIPAN_KEY, list);
+  return updated;
+}
+
+type PosProduct = {
+  id: string | number;
+  stok?: number;
+  [key: string]: any;
+};
+
+export function decreasePosProductStock(produkId?: string | number | null, qty = 0) {
+  if (!produkId || qty <= 0) return;
+  const list = readStorage<PosProduct[]>(POS_PRODUCTS_KEY, []);
+  const idx = list.findIndex((item) => String(item.id) === String(produkId));
+  if (idx === -1) return;
+  const current = list[idx];
+  const currentStock = Number(current.stok ?? 0);
+  const newStock = Math.max(0, currentStock - qty);
+  list[idx] = {
+    ...current,
+    stok: newStock,
+  };
+  writeStorage(POS_PRODUCTS_KEY, list);
 }

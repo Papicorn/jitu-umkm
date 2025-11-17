@@ -4,11 +4,13 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  completeTitipan,
+  decreasePosProductStock,
   getStoreById,
   getTitipanByStore,
+  KonsinyasiStore,
   TitipanEntry,
   updateStore,
-  updateTitipanStatus,
 } from "@/lib/konsinyasiStorage";
 
 type Props = {
@@ -30,6 +32,17 @@ export default function DetailTokoKon({ storeId }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [titipanList, setTitipanList] = useState<TitipanEntry[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [currentStore, setCurrentStore] = useState<KonsinyasiStore | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStep, setModalStep] = useState<"form" | "success">("form");
+  const [selectedTitipan, setSelectedTitipan] = useState<TitipanEntry | null>(null);
+  const [soldInput, setSoldInput] = useState("");
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [hasilPenjualan, setHasilPenjualan] = useState<{
+    gross: number;
+    net: number;
+    komisi: number;
+  } | null>(null);
 
   const refreshData = (targetId?: string) => {
     if (!targetId) {
@@ -41,6 +54,7 @@ export default function DetailTokoKon({ storeId }: Props) {
       setNotFound(true);
       return;
     }
+    setCurrentStore(store);
     setNotFound(false);
     setFormState({
       nama_toko: store.nama_toko,
@@ -100,10 +114,75 @@ export default function DetailTokoKon({ storeId }: Props) {
     }
   };
 
-  const handleMarkSelesai = (id: string) => {
-    if (!resolvedStoreId) return;
-    updateTitipanStatus(id, "selesai");
-    setTitipanList(getTitipanByStore(resolvedStoreId));
+  const handleOpenCompleteModal = (entry: TitipanEntry) => {
+    setSelectedTitipan(entry);
+    setSoldInput("");
+    setModalStep("form");
+    setHasilPenjualan(null);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedTitipan(null);
+    setSoldInput("");
+    setModalStep("form");
+    setHasilPenjualan(null);
+    setIsCompleting(false);
+  };
+
+  const formatCurrency = (value?: number | null) =>
+    typeof value === "number"
+      ? `Rp${value.toLocaleString("id-ID")}`
+      : "-";
+
+  const handleCompleteTitipan = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedTitipan || !resolvedStoreId) return;
+    const soldQty = Number(soldInput);
+    if (!soldQty || soldQty <= 0) {
+      alert("Masukkan jumlah terjual yang valid.");
+      return;
+    }
+    if (soldQty > selectedTitipan.stokTitip) {
+      alert("Jumlah terjual tidak boleh melebihi stok titip.");
+      return;
+    }
+
+    const harga = Number(selectedTitipan.hargaJual ?? 0);
+    const gross = harga * soldQty;
+    let komisi = 0;
+    if (currentStore) {
+      if (currentStore.komisi_nominal && currentStore.komisi_nominal > 0) {
+        komisi = currentStore.komisi_nominal * soldQty;
+      } else if (currentStore.komisi_persen && currentStore.komisi_persen > 0) {
+        komisi = Math.round((gross * currentStore.komisi_persen) / 100);
+      }
+    }
+    const net = Math.max(0, gross - komisi);
+
+    setIsCompleting(true);
+    try {
+      completeTitipan(selectedTitipan.id, {
+        soldQuantity: soldQty,
+        grossRevenue: gross,
+        netRevenue: net,
+        komisiAmount: komisi,
+      });
+      decreasePosProductStock(selectedTitipan.produkId, soldQty);
+      setHasilPenjualan({
+        gross,
+        net,
+        komisi,
+      });
+      setModalStep("success");
+      refreshData(resolvedStoreId);
+    } catch (err) {
+      console.error("Gagal menandai titipan selesai:", err);
+      alert("❌ Gagal menyimpan data penjualan.");
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   if (notFound) {
@@ -245,10 +324,10 @@ export default function DetailTokoKon({ storeId }: Props) {
                   <p>Estimasi : {item.estimasi}</p>
                   <button
                     type="button"
-                    onClick={() => handleMarkSelesai(item.id)}
+                    onClick={() => handleOpenCompleteModal(item)}
                     className="mt-2 text-[11px] text-white bg-green-500 rounded py-1"
                   >
-                    Tandai selesai
+                    Hitung Penjualan
                   </button>
                 </div>
               ))
@@ -263,8 +342,16 @@ export default function DetailTokoKon({ storeId }: Props) {
               selesaiTitipan.map((item) => (
                 <div key={item.id} className="border rounded-lg p-3 text-xs space-y-1">
                   <p className="font-semibold text-zinc-700">{item.produkNama}</p>
-                  <p>Jumlah : {item.stokTitip}</p>
+                  <p>Jumlah Titip : {item.stokTitip}</p>
+                  {item.soldQuantity != null && <p>Terjual : {item.soldQuantity}</p>}
+                  {item.remainingStock != null && <p>Sisa : {item.remainingStock}</p>}
                   <p>Estimasi : {item.estimasi}</p>
+                  {item.netRevenue != null && (
+                    <p>Duit Masuk : <b>{formatCurrency(item.netRevenue)}</b></p>
+                  )}
+                  {item.komisiAmount != null && (
+                    <p>Komisi Consigne : <b>{formatCurrency(item.komisiAmount)}</b></p>
+                  )}
                 </div>
               ))
             )}
@@ -289,6 +376,80 @@ export default function DetailTokoKon({ storeId }: Props) {
           </button>
         </div>
       </form>
+      {modalOpen && selectedTitipan && (
+        <div className="fixed inset-0 text-zinc-700 bg-black/40 backdrop-blur-sm flex items-end justify-center z-40 px-3 pb-6">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-4 space-y-4">
+            {modalStep === "form" && (
+              <>
+                <div className="flex justify-between items-center">
+                  <p className="font-semibold text-sm">Hitung Penjualan Penitipan</p>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="text-xs text-zinc-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="text-xs bg-[#F4F7FE] rounded-lg p-3 space-y-1">
+                  <p>
+                    Produk : <b>{selectedTitipan.produkNama}</b>
+                  </p>
+                  <p>Stok Dititipkan : {selectedTitipan.stokTitip}</p>
+                  <p>Estimasi : {selectedTitipan.estimasi}</p>
+                </div>
+                <form onSubmit={handleCompleteTitipan} className="space-y-3">
+                  <label className="text-sm flex flex-col space-y-1 ">
+                    <span>Jumlah Terjual</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={selectedTitipan.stokTitip}
+                      className="bg-[#F4F7FE] rounded-lg px-3 py-2 text-zinc-700 outline-0 text-sm"
+                      placeholder="Masukkan jumlah terjual"
+                      value={soldInput}
+                      onChange={(ev) => setSoldInput(ev.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={isCompleting}
+                    className="w-full bg-[#FFCA40] text-sm rounded-lg py-2 border border-zinc-600 disabled:opacity-60"
+                  >
+                    {isCompleting ? "Menyimpan..." : "Masukkan"}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {modalStep === "success" && hasilPenjualan && (
+              <div className="space-y-4 text-sm text-center">
+                <div className="w-12 h-12 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+                  <span className="text-green-600 text-2xl">✓</span>
+                </div>
+                <div>
+                  <p className="font-semibold">Data Penjualan Berhasil Disimpan</p>
+                  <div className="text-left text-xs bg-[#F4F7FE] rounded-lg p-3 space-y-1 mt-3">
+                    <p>
+                      Duit Masuk : <b>{formatCurrency(hasilPenjualan.net)}</b>
+                    </p>
+                    <p>
+                      Komisi Consigne : <b>{formatCurrency(hasilPenjualan.komisi)}</b>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="w-full bg-[#FFCA40] text-sm rounded-lg py-2 border border-zinc-600"
+                >
+                  Selesai
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
