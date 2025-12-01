@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { addStore } from "@/lib/konsinyasiStorage";
+import { tambahToko } from "@/lib/konsinyasiStorage";
 
 export default function InputTokoKonTambah() {
   const router = useRouter();
@@ -35,7 +35,7 @@ export default function InputTokoKonTambah() {
         ? Number(komisi_persen_raw)
         : null;
 
-      const newStore = addStore({
+      const newStore = tambahToko({
         nama_toko,
         lokasi_toko,
         pemilik,

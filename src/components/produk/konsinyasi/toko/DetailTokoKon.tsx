@@ -4,14 +4,14 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  completeTitipan,
-  decreasePosProductStock,
-  getStoreById,
-  getTitipanByStore,
+  selesaikanTitipan,
+  ambilTokoById,
+  ambilTitipanPerToko,
   KonsinyasiStore,
   TitipanEntry,
-  updateStore,
+  ubahToko,
 } from "@/lib/konsinyasiStorage";
+import Image from "next/image";
 
 type Props = {
   storeId?: string;
@@ -49,7 +49,7 @@ export default function DetailTokoKon({ storeId }: Props) {
       setNotFound(true);
       return;
     }
-    const store = getStoreById(targetId);
+    const store = ambilTokoById(targetId);
     if (!store) {
       setNotFound(true);
       return;
@@ -64,7 +64,7 @@ export default function DetailTokoKon({ storeId }: Props) {
       komisi_nominal: store.komisi_nominal != null ? String(store.komisi_nominal) : "",
       komisi_persen: store.komisi_persen != null ? String(store.komisi_persen) : "",
     });
-    setTitipanList(getTitipanByStore(targetId));
+    setTitipanList(ambilTitipanPerToko(targetId));
   };
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function DetailTokoKon({ storeId }: Props) {
     setIsSaving(true);
 
     try {
-      updateStore(resolvedStoreId, {
+      ubahToko(resolvedStoreId, {
         nama_toko: formState.nama_toko.trim(),
         lokasi_toko: formState.lokasi_toko,
         pemilik: formState.pemilik,
@@ -163,13 +163,12 @@ export default function DetailTokoKon({ storeId }: Props) {
 
     setIsCompleting(true);
     try {
-      completeTitipan(selectedTitipan.id, {
+      selesaikanTitipan(selectedTitipan.id, {
         soldQuantity: soldQty,
         grossRevenue: gross,
         netRevenue: net,
         komisiAmount: komisi,
       });
-      decreasePosProductStock(selectedTitipan.produkId, soldQty);
       setHasilPenjualan({
         gross,
         net,
@@ -311,27 +310,34 @@ export default function DetailTokoKon({ storeId }: Props) {
 
           <div className="bg-white p-3 text-sm rounded-lg shadow-sm space-y-3">
             <p className="text-green-500 font-semibold text-center">Aktif</p>
+            <div className="space-y-5">
             {activeTitipan.length === 0 ? (
               <p className="text-zinc-400 text-center">Tidak Ada Data</p>
             ) : (
               activeTitipan.map((item) => (
-                <div
-                  key={item.id}
-                  className="border rounded-lg p-3 text-xs flex flex-col space-y-1"
-                >
-                  <p className="font-semibold text-zinc-700">{item.produkNama}</p>
-                  <p>Jumlah : {item.stokTitip}</p>
-                  <p>Estimasi : {item.estimasi}</p>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCompleteModal(item)}
-                    className="mt-2 text-[11px] text-white bg-green-500 rounded py-1"
+                <div className="flex w-full space-x-3">
+                  <div className="w-27 relative h-20 rounded-2xl">
+                    <Image src="/assets/image/ubi-ungu.jpg" alt="toko konsinyasi" fill className="rounded-xl object-cover" />
+                  </div>
+                  <div
+                    key={item.id}
+                    className="text-sm flex flex-col w-full"
                   >
-                    Hitung Penjualan
-                  </button>
+                    <p>Produk : <b>{item.produkNama}</b></p>
+                    <p>Jumlah : {item.stokTitip}</p>
+                    <p>Estimasi : {item.estimasi}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCompleteModal(item)}
+                      className="mt-1 text-sm text-white bg-green-500 rounded py-1"
+                    >
+                      Hitung Penjualan
+                    </button>
+                  </div>
                 </div>
               ))
             )}
+            </div>
           </div>
 
           <div className="bg-white p-3 text-sm rounded-lg shadow-sm space-y-3">
@@ -340,9 +346,12 @@ export default function DetailTokoKon({ storeId }: Props) {
               <p className="text-zinc-400 text-center">Tidak Ada Data</p>
             ) : (
               selesaiTitipan.map((item) => (
-                <div key={item.id} className="border rounded-lg p-3 text-xs space-y-1">
+                <div className="flex w-full space-x-3 border-b pb-3 border-zinc-400">
+                  <div className="w-20 relative h-20 rounded-2xl">
+                    <Image src="/assets/image/ubi-ungu.jpg" alt="toko konsinyasi" fill className="rounded-xl object-cover" />
+                  </div>
+                <div key={item.id} className=" text-sm space-y-1">
                   <p className="font-semibold text-zinc-700">{item.produkNama}</p>
-                  <p>Jumlah Titip : {item.stokTitip}</p>
                   {item.soldQuantity != null && <p>Terjual : {item.soldQuantity}</p>}
                   {item.remainingStock != null && <p>Sisa : {item.remainingStock}</p>}
                   <p>Estimasi : {item.estimasi}</p>
@@ -352,6 +361,7 @@ export default function DetailTokoKon({ storeId }: Props) {
                   {item.komisiAmount != null && (
                     <p>Komisi Consigne : <b>{formatCurrency(item.komisiAmount)}</b></p>
                   )}
+                </div>
                 </div>
               ))
             )}
@@ -377,7 +387,7 @@ export default function DetailTokoKon({ storeId }: Props) {
         </div>
       </form>
       {modalOpen && selectedTitipan && (
-        <div className="fixed inset-0 text-zinc-700 bg-black/40 backdrop-blur-sm flex items-end justify-center z-40 px-3 pb-6">
+        <div className="fixed inset-0 text-zinc-700 bg-black/40 backdrop-blur-sm flex items-center justify-center z-40 px-3 pb-6">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-4 space-y-4">
             {modalStep === "form" && (
               <>

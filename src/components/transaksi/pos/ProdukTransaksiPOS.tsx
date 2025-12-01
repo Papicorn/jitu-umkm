@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { decreasePosProductStock } from "@/lib/konsinyasiStorage";
+import { kurangiStokProdukPOS } from "@/lib/konsinyasiStorage";
 
 interface Produk {
   id: number;
@@ -17,6 +17,7 @@ interface CartItem {
   nama_produk: string;
   harga_jual: number;
   qty: number;
+  kategori?: string;
 }
 
 type Step = "idle" | "detail" | "payment" | "success";
@@ -29,7 +30,17 @@ interface Receipt {
   paymentMethod: PaymentMethod;
 }
 
+type PosTransaksi = {
+  id: number;
+  items: CartItem[];
+  subtotal: number;
+  totalItems: number;
+  paymentMethod: PaymentMethod;
+  created_at: string;
+};
+
 const STORAGE_KEY = "jitu_products";
+const POS_TRANSAKSI_KEY = "jitu_pos_transactions";
 const SEARCH_EVENT = "pos-search-term";
 
 const formatCurrency = (value: number) =>
@@ -140,13 +151,28 @@ export default function ProdukTransaksiPOS() {
 
   const handleSelectPayment = (method: PaymentMethod) => {
     if (cart.length === 0) return;
-    cart.forEach((item) => decreasePosProductStock(item.id, item.qty));
-    loadProduk();
-    setLastReceipt({
-      items: cart.map((item) => ({ ...item })),
+    const transaksi: PosTransaksi = {
+      id: Date.now(),
+      items: cart.map((item) => {
+        const produk = produkList.find((p) => p.id === item.id);
+        return {
+          ...item,
+          kategori: produk?.kategori ?? "Tanpa Kategori",
+        };
+      }),
       subtotal,
       totalItems,
       paymentMethod: method,
+      created_at: new Date().toISOString(),
+    };
+    simpanTransaksiPOS(transaksi);
+    cart.forEach((item) => kurangiStokProdukPOS(item.id, item.qty));
+    loadProduk();
+    setLastReceipt({
+      items: transaksi.items.map(({ kategori, ...rest }) => rest),
+      subtotal: transaksi.subtotal,
+      totalItems: transaksi.totalItems,
+      paymentMethod: transaksi.paymentMethod,
     });
     setCurrentStep("success");
     setCart([]);
@@ -160,11 +186,11 @@ export default function ProdukTransaksiPOS() {
   const paymentLabel = (method: PaymentMethod) =>
     method === "tunai" ? "Tunai" : "Transfer/Kredit";
 
-  const orderList = (items: CartItem[]) => (
-    <div className="space-y-3">
-      {items.map((item) => (
-        <div
-          key={item.id}
+const orderList = (items: CartItem[]) => (
+  <div className="space-y-3">
+    {items.map((item) => (
+      <div
+        key={item.id}
           className="flex items-center justify-between text-sm text-zinc-800"
         >
           <div className="flex items-center gap-2">
@@ -191,8 +217,20 @@ export default function ProdukTransaksiPOS() {
           </p>
         </div>
       ))}
-    </div>
-  );
+  </div>
+);
+
+function simpanTransaksiPOS(transaksi: PosTransaksi) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(POS_TRANSAKSI_KEY);
+    const list = raw ? (JSON.parse(raw) as PosTransaksi[]) : [];
+    list.push(transaksi);
+    localStorage.setItem(POS_TRANSAKSI_KEY, JSON.stringify(list));
+  } catch (err) {
+    console.error("Gagal menyimpan transaksi POS:", err);
+  }
+}
 
   return (
     <div className="w-full space-y-4 pb-32">

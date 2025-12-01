@@ -34,188 +34,152 @@ export type TitipanEntry = {
   updated_at: string;
 };
 
-const STORES_KEY = "jitu_consignment_stores";
-const TITIPAN_KEY = "jitu_consignment_titipan";
-const POS_PRODUCTS_KEY = "jitu_products";
+type PosProduct = { id: string | number; stok?: number; [key: string]: any };
 
-const isBrowser = typeof window !== "undefined";
+const KUNCI_TOKO = "jitu_consignment_stores";
+const KUNCI_TITIPAN = "jitu_consignment_titipan";
+const KUNCI_PRODUK_POS = "jitu_products";
+const adaWindow = typeof window !== "undefined";
 
-function readStorage<T>(key: string, fallback: T): T {
-  if (!isBrowser) return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    console.error("Gagal parse localStorage:", err);
-    return fallback;
-  }
-}
-
-function writeStorage<T>(key: string, value: T) {
-  if (!isBrowser) return;
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
-function createId() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
-export function getStores(): KonsinyasiStore[] {
-  return readStorage<KonsinyasiStore[]>(STORES_KEY, []);
-}
-
-export function getStoreById(id?: string | null): KonsinyasiStore | null {
-  if (!id) return null;
-  const stores = getStores();
-  return stores.find((item) => item.id === id) || null;
-}
-
-export type AddStorePayload = {
-  nama_toko: string;
-  lokasi_toko: string;
-  pemilik: string;
-  kontak: string;
-  komisi_nominal?: number | null;
-  komisi_persen?: number | null;
+const penyimpanan = {
+  baca<T>(kunci: string, cadangan: T): T {
+    if (!adaWindow) return cadangan;
+    try {
+      const mentah = window.localStorage.getItem(kunci);
+      return mentah ? (JSON.parse(mentah) as T) : cadangan;
+    } catch (err) {
+      console.error("Gagal baca localStorage:", err);
+      return cadangan;
+    }
+  },
+  tulis<T>(kunci: string, nilai: T) {
+    if (!adaWindow) return;
+    window.localStorage.setItem(kunci, JSON.stringify(nilai));
+  },
 };
 
-export function addStore(payload: AddStorePayload): KonsinyasiStore {
-  const now = new Date().toISOString();
-  const newStore: KonsinyasiStore = {
-    id: createId(),
-    created_at: now,
-    updated_at: now,
+const waktuSekarang = () => new Date().toISOString();
+const buatId = () => `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+
+function ubahItem<T extends { id: string }>(
+  kunci: string,
+  id: string,
+  mutator: (item: T) => T
+): T | null {
+  const daftar = penyimpanan.baca<T[]>(kunci, []);
+  const posisi = daftar.findIndex((item) => item.id === id);
+  if (posisi === -1) return null;
+  const diperbarui = mutator(daftar[posisi]);
+  daftar[posisi] = diperbarui;
+  penyimpanan.tulis(kunci, daftar);
+  return diperbarui;
+}
+
+function tambahItem<T>(kunci: string, item: T): T {
+  const daftar = penyimpanan.baca<T[]>(kunci, []);
+  daftar.push(item);
+  penyimpanan.tulis(kunci, daftar);
+  return item;
+}
+
+export const ambilSemuaToko = () => penyimpanan.baca<KonsinyasiStore[]>(KUNCI_TOKO, []);
+export const ambilTokoById = (id?: string | null) =>
+  id ? ambilSemuaToko().find((toko) => toko.id === id) || null : null;
+
+export type TambahTokoPayload = Omit<KonsinyasiStore, "id" | "created_at" | "updated_at">;
+
+export function tambahToko(payload: TambahTokoPayload): KonsinyasiStore {
+  const tokoBaru: KonsinyasiStore = {
     ...payload,
+    id: buatId(),
+    created_at: waktuSekarang(),
+    updated_at: waktuSekarang(),
     komisi_nominal: payload.komisi_nominal ?? null,
     komisi_persen: payload.komisi_persen ?? null,
   };
-
-  const stores = getStores();
-  stores.push(newStore);
-  writeStorage(STORES_KEY, stores);
-  return newStore;
+  return tambahItem(KUNCI_TOKO, tokoBaru);
 }
 
-export function updateStore(id: string, payload: Partial<AddStorePayload>): KonsinyasiStore | null {
-  const stores = getStores();
-  const idx = stores.findIndex((item) => item.id === id);
-  if (idx === -1) return null;
-  const now = new Date().toISOString();
-  const updated: KonsinyasiStore = {
-    ...stores[idx],
+export function ubahToko(id: string, payload: Partial<TambahTokoPayload>) {
+  return ubahItem<KonsinyasiStore>(KUNCI_TOKO, id, (toko) => ({
+    ...toko,
     ...payload,
     komisi_nominal:
-      payload.komisi_nominal !== undefined ? payload.komisi_nominal : stores[idx].komisi_nominal,
+      payload.komisi_nominal !== undefined ? payload.komisi_nominal : toko.komisi_nominal ?? null,
     komisi_persen:
-      payload.komisi_persen !== undefined ? payload.komisi_persen : stores[idx].komisi_persen,
-    updated_at: now,
-  };
-  stores[idx] = updated;
-  writeStorage(STORES_KEY, stores);
-  return updated;
+      payload.komisi_persen !== undefined ? payload.komisi_persen : toko.komisi_persen ?? null,
+    updated_at: waktuSekarang(),
+  }));
 }
 
-export function getTitipan(): TitipanEntry[] {
-  return readStorage<TitipanEntry[]>(TITIPAN_KEY, []);
-}
+export const ambilSemuaTitipan = () => penyimpanan.baca<TitipanEntry[]>(KUNCI_TITIPAN, []);
+export const ambilTitipanPerToko = (storeId?: string | null) =>
+  storeId ? ambilSemuaTitipan().filter((titipan) => titipan.storeId === storeId) : [];
 
-export function getTitipanByStore(storeId?: string | null): TitipanEntry[] {
-  if (!storeId) return [];
-  return getTitipan().filter((item) => item.storeId === storeId);
-}
+export type TambahTitipanPayload = Omit<
+  TitipanEntry,
+  "id" | "status" | "created_at" | "updated_at"
+>;
 
-export type AddTitipanPayload = {
-  storeId: string;
-  produkId?: string | number | null;
-  produkNama: string;
-  kategori?: string | null;
-  satuan?: string | null;
-  hargaJual?: number | null;
-  stokTitip: number;
-  estimasi: string;
-};
-
-export function addTitipan(payload: AddTitipanPayload): TitipanEntry {
-  const now = new Date().toISOString();
-  const entry: TitipanEntry = {
-    id: createId(),
-    status: "aktif",
-    created_at: now,
-    updated_at: now,
+export function tambahTitipan(payload: TambahTitipanPayload): TitipanEntry {
+  const titipanBaru: TitipanEntry = {
     ...payload,
+    id: buatId(),
+    status: "aktif",
+    created_at: waktuSekarang(),
+    updated_at: waktuSekarang(),
   };
-  const list = getTitipan();
-  list.push(entry);
-  writeStorage(TITIPAN_KEY, list);
-  return entry;
+  return tambahItem(KUNCI_TITIPAN, titipanBaru);
 }
 
-export function updateTitipanStatus(id: string, status: TitipanStatus): TitipanEntry | null {
-  const list = getTitipan();
-  const idx = list.findIndex((item) => item.id === id);
-  if (idx === -1) return null;
-  const updated: TitipanEntry = {
-    ...list[idx],
+export const ubahStatusTitipan = (id: string, status: TitipanStatus) =>
+  ubahItem<TitipanEntry>(KUNCI_TITIPAN, id, (titipan) => ({
+    ...titipan,
     status,
-    updated_at: new Date().toISOString(),
-  };
-  list[idx] = updated;
-  writeStorage(TITIPAN_KEY, list);
-  return updated;
-}
+    updated_at: waktuSekarang(),
+  }));
 
-export type CompleteTitipanPayload = {
+export type SelesaikanTitipanPayload = {
   soldQuantity: number;
   grossRevenue: number;
   netRevenue: number;
   komisiAmount: number;
 };
 
-export function completeTitipan(
-  id: string,
-  payload: CompleteTitipanPayload
-): TitipanEntry | null {
-  const list = getTitipan();
-  const idx = list.findIndex((item) => item.id === id);
-  if (idx === -1) return null;
-  const now = new Date().toISOString();
-  const entry = list[idx];
-  const remaining = Math.max(0, entry.stokTitip - payload.soldQuantity);
-
-  const updated: TitipanEntry = {
-    ...entry,
+export function selesaikanTitipan(id: string, payload: SelesaikanTitipanPayload) {
+  return ubahItem<TitipanEntry>(KUNCI_TITIPAN, id, (titipan) => ({
+    ...titipan,
     status: "selesai",
     soldQuantity: payload.soldQuantity,
     grossRevenue: payload.grossRevenue,
     netRevenue: payload.netRevenue,
     komisiAmount: payload.komisiAmount,
-    remainingStock: remaining,
-    updated_at: now,
-  };
-
-  list[idx] = updated;
-  writeStorage(TITIPAN_KEY, list);
-  return updated;
+    remainingStock: Math.max(0, titipan.stokTitip - payload.soldQuantity),
+    updated_at: waktuSekarang(),
+  }));
 }
 
-type PosProduct = {
-  id: string | number;
-  stok?: number;
-  [key: string]: any;
-};
-
-export function decreasePosProductStock(produkId?: string | number | null, qty = 0) {
-  if (!produkId || qty <= 0) return;
-  const list = readStorage<PosProduct[]>(POS_PRODUCTS_KEY, []);
-  const idx = list.findIndex((item) => String(item.id) === String(produkId));
-  if (idx === -1) return;
-  const current = list[idx];
-  const currentStock = Number(current.stok ?? 0);
-  const newStock = Math.max(0, currentStock - qty);
-  list[idx] = {
-    ...current,
-    stok: newStock,
-  };
-  writeStorage(POS_PRODUCTS_KEY, list);
+export function kurangiStokProdukPOS(produkId?: string | number | null, jumlah = 0) {
+  if (!produkId || jumlah <= 0) return;
+  const daftarProduk = penyimpanan.baca<PosProduct[]>(KUNCI_PRODUK_POS, []);
+  const posisi = daftarProduk.findIndex((produk) => String(produk.id) === String(produkId));
+  if (posisi === -1) return;
+  const produk = daftarProduk[posisi];
+  daftarProduk[posisi] = { ...produk, stok: Math.max(0, Number(produk.stok ?? 0) - jumlah) };
+  penyimpanan.tulis(KUNCI_PRODUK_POS, daftarProduk);
 }
+
+// alias lama supaya komponen lain tetap jalan jika belum diganti
+export const getStores = ambilSemuaToko;
+export const getStoreById = ambilTokoById;
+export type AddStorePayload = TambahTokoPayload;
+export const addStore = tambahToko;
+export const updateStore = ubahToko;
+export const getTitipan = ambilSemuaTitipan;
+export const getTitipanByStore = ambilTitipanPerToko;
+export type AddTitipanPayload = TambahTitipanPayload;
+export const addTitipan = tambahTitipan;
+export const updateTitipanStatus = ubahStatusTitipan;
+export type CompleteTitipanPayload = SelesaikanTitipanPayload;
+export const completeTitipan = selesaikanTitipan;
+export const decreasePosProductStock = kurangiStokProdukPOS;

@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getStores, getTitipan, KonsinyasiStore, TitipanEntry } from "@/lib/konsinyasiStorage";
+import {
+  ambilSemuaToko,
+  ambilSemuaTitipan,
+  KonsinyasiStore,
+  TitipanEntry,
+} from "@/lib/konsinyasiStorage";
 
 type StoreWithStats = {
   store: KonsinyasiStore;
@@ -16,8 +21,8 @@ export default function ProdukTokoKon() {
   const [titipanList, setTitipanList] = useState<TitipanEntry[]>([]);
 
   useEffect(() => {
-    setStores(getStores());
-    setTitipanList(getTitipan());
+    setStores(ambilSemuaToko());
+    setTitipanList(ambilSemuaTitipan());
   }, []);
 
   const data: StoreWithStats[] = useMemo(() => {

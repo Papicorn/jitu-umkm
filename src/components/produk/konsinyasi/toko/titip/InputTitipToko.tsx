@@ -3,7 +3,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { addTitipan, decreasePosProductStock, getStoreById } from "@/lib/konsinyasiStorage";
+import {
+  tambahTitipan,
+  kurangiStokProdukPOS,
+  ambilTokoById,
+} from "@/lib/konsinyasiStorage";
 
 const POS_STORAGE_KEY = "jitu_products";
 
@@ -31,7 +35,7 @@ export default function InputTitipToko({ storeId }: Props) {
 
   useEffect(() => {
     if (!resolvedStoreId) return;
-    const store = getStoreById(resolvedStoreId);
+    const store = ambilTokoById(resolvedStoreId);
     setStoreName(store?.nama_toko ?? "");
   }, [resolvedStoreId]);
 
@@ -83,7 +87,7 @@ export default function InputTitipToko({ storeId }: Props) {
 
     setIsSaving(true);
     try {
-      addTitipan({
+      tambahTitipan({
         storeId: resolvedStoreId,
         produkId: selectedProduk.id,
         produkNama: selectedProduk.nama_produk,
@@ -93,7 +97,7 @@ export default function InputTitipToko({ storeId }: Props) {
         stokTitip: stok_jual,
         estimasi,
       });
-      decreasePosProductStock(selectedProduk.id, stok_jual);
+      kurangiStokProdukPOS(selectedProduk.id, stok_jual);
       alert("✅ Titipan berhasil disimpan.");
       router.push(`/produk/konsinyasi/toko?id=${resolvedStoreId}`);
     } catch (err) {
