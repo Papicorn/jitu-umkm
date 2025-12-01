@@ -1,3 +1,5 @@
+ "use client";
+
 import NavtopDashboard from "@/components/dashboard/NavtopDashboard";
 import NavBot from "@/components/partials/NavBot";
 import { useState } from "react";

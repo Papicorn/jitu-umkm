@@ -10,6 +10,7 @@ interface Produk {
   harga_jual: number;
   stok: number;
   gambar_base64?: string | null;
+  kategori?: string;
 }
 
 interface CartItem {
