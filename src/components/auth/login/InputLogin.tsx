@@ -31,7 +31,7 @@ export default function InputLogin() {
 
                 <div>
                     <Link href="/dashboard">
-                        <button type="submit" className={`active:bg-[#f3f1f1] mt-5 active:shadow-lg cursor-pointer hover:bg-[#f3f1f1] hover:shadow-lg duration-300 ease-out bg-[#ffffff] w-full text-center text-sm rounded-xl py-4 text-zinc-500 shadow-sm`}>Masuk</button>
+                        <button type="submit" className={`active:bg-[#f3f1f1] mt-5 active:shadow-lg cursor-pointer hover:bg-[#f3f1f1] hover:shadow-lg duration-300 ease-out bg-[#ffffff] w-full text-center text-sm rounded-xl py-4 text-zinc-500 shadow-sm`}>Masuk Offline</button>
                     </Link>
                 </div>
 
