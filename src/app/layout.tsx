@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
 import "./globals.css";
 import RegisterServiceWorker from "./register-sw";
+import RouteLoadingOverlay from "@/components/partials/RouteLoadingOverlay";
 
 const noto = Noto_Sans({ subsets: ["latin"], weight: ["400", "700"] });
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${noto.className} antialiased`}>
         {children}
+        <RouteLoadingOverlay />
         <RegisterServiceWorker />
       </body>
     </html>
