@@ -10,7 +10,7 @@ export default function Dashboard() {
   return (
     <main className="min-h-dvh bg-[#F4F7FE]">
       <NavtopDashboard title="Beranda" />
-      <div className="w-full max-w-sm mx-auto flex-col pt-4 pb-27 space-y-4">
+      <div className="w-full max-w-[430px] px-5 sm:px-4 mx-auto flex-col pt-4 pb-27 space-y-4">
         <Welcomer />
         <NavigationDashboard />
         <GrafikPenjualanDashboard />

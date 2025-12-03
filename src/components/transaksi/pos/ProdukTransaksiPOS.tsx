@@ -354,7 +354,7 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end justify-center z-30 px-3 pb-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-sm">Rincian Pesanan</p>
+              <p className="font-semibold text-sm text-zinc-700">Rincian Pesanan</p>
               <button
                 type="button"
                 onClick={() => setCurrentStep("idle")}

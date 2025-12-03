@@ -169,7 +169,6 @@ export function kurangiStokProdukPOS(produkId?: string | number | null, jumlah =
   penyimpanan.tulis(KUNCI_PRODUK_POS, daftarProduk);
 }
 
-// alias lama supaya komponen lain tetap jalan jika belum diganti
 export const getStores = ambilSemuaToko;
 export const getStoreById = ambilTokoById;
 export type AddStorePayload = TambahTokoPayload;

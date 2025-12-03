@@ -11,7 +11,7 @@ export default function NavtopDashboard({ title, showBackButton = false, backUrl
     return (
         <>
         <div className="bg-[#FFCA40] w-full py-4 rounded-bl-3xl rounded-br-3xl shadow-[inset_0_-4px_9px_-1px_rgba(0,0,0,0.1)]">
-            <div className="w-full max-w-sm mx-auto flex-col">
+                <div className="w-full max-w-[430px] px-5 sm:px-4 mx-auto flex-col">
                 <div className="text-center flex justify-between space-x-3 items-center">
                     {showBackButton ? (
                         <Link href={backUrl}>
