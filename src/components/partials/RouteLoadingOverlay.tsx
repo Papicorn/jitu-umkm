@@ -8,21 +8,27 @@ const MAX_VISIBLE_MS = 8000;
 
 export default function RouteLoadingOverlay() {
   const pathname = usePathname();
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true); // tampil saat pertama load
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startTime = useRef<number>(0);
+  const startTime = useRef<number>(Date.now());
+  const safetyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showOverlay = () => {
     if (hideTimeout.current) {
       clearTimeout(hideTimeout.current);
       hideTimeout.current = null;
     }
+    if (safetyTimeout.current) {
+      clearTimeout(safetyTimeout.current);
+      safetyTimeout.current = null;
+    }
     startTime.current = Date.now();
     setVisible(true);
+    safetyTimeout.current = setTimeout(() => setVisible(false), MAX_VISIBLE_MS);
   };
 
+  // Klik Link internal -> munculkan overlay
   useEffect(() => {
-    // Tangkap klik Link/A internal, termasuk NavBot, supaya overlay muncul di semua rute
     const handleClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -43,50 +49,30 @@ export default function RouteLoadingOverlay() {
       showOverlay();
     };
 
-    const handlePopState = () => showOverlay();
-
-    type PushState = History["pushState"];
-    const originalPush: PushState = window.history.pushState.bind(window.history);
-    const originalReplace: PushState = window.history.replaceState.bind(window.history);
-
-    window.history.pushState = ((...args: Parameters<PushState>) => {
-      showOverlay();
-      return originalPush(...args);
-    }) as PushState;
-
-    window.history.replaceState = ((...args: Parameters<PushState>) => {
-      showOverlay();
-      return originalReplace(...args);
-    }) as PushState;
-
     document.addEventListener("click", handleClick, true);
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      document.removeEventListener("click", handleClick, true);
-      window.removeEventListener("popstate", handlePopState);
-      window.history.pushState = originalPush;
-      window.history.replaceState = originalReplace;
-    };
+    return () => document.removeEventListener("click", handleClick, true);
   }, []);
 
-  // Sembunyikan saat rute sudah berubah, dengan durasi minimum supaya tidak "blink"
+  // Saat pathname berubah, sembunyikan setelah durasi minimum
   useEffect(() => {
     if (!visible) return;
-    if (!startTime.current) startTime.current = Date.now();
-
     if (hideTimeout.current) clearTimeout(hideTimeout.current);
+
     const elapsed = Date.now() - startTime.current;
     const remaining = Math.max(MIN_VISIBLE_MS - elapsed, 0);
 
     hideTimeout.current = setTimeout(() => setVisible(false), remaining);
+    return () => {
+      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+    };
   }, [pathname, visible]);
 
-  // Fallback: jangan biarkan overlay nempel selamanya kalau ada error
+  // Bersihkan safety timeout saat overlay ditutup
   useEffect(() => {
-    if (!visible) return;
-    const timeout = setTimeout(() => setVisible(false), MAX_VISIBLE_MS);
-    return () => clearTimeout(timeout);
+    if (!visible && safetyTimeout.current) {
+      clearTimeout(safetyTimeout.current);
+      safetyTimeout.current = null;
+    }
   }, [visible]);
 
   if (!visible) return null;
