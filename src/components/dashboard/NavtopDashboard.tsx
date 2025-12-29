@@ -21,7 +21,9 @@ export default function NavtopDashboard({ title, showBackButton = false, backUrl
                         <div className="w-[40px]" />
                     )}
                     <h2 className="text-2xl font-bold text-zinc-700 w-full items-center">{ title }</h2>
-                    <Image src={`/assets/image/profile.png`} className="" width={60} height={100} alt="Profile image" />
+                    <Link href="/profile">
+                        <Image src={`/assets/image/profile.png`} className="" width={60} height={100} alt="Profile image" />
+                    </Link>
                 </div>
             </div>
         </div>

@@ -122,20 +122,6 @@ export default function InputProdukPOSTambah() {
           </div>
         </label>
 
-        {/* Deskripsi */}
-        <label htmlFor="deskripsi" className="flex flex-col space-y-1">
-          <span className="text-sm">Deskripsi</span>
-          <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm">
-            <textarea
-              name="deskripsi"
-              id="deskripsi"
-              className="text-sm w-full outline-0"
-              rows={4}
-              placeholder="Masukkan deskripsi"
-            />
-          </div>
-        </label>
-
         {/* Kategori */}
         <label htmlFor="kategori" className="flex flex-col space-y-1">
           <span className="text-sm">Kategori</span>
@@ -176,22 +162,7 @@ export default function InputProdukPOSTambah() {
           </div>
         </label>
 
-        {/* Harga Modal */}
-        <label htmlFor="harga_modal" className="flex flex-col space-y-1">
-          <span className="text-sm">Harga (HPP)</span>
-          <div className="bg-white py-3 px-3 rounded-lg flex items-center shadow-sm space-x-1">
-            <p className="text-sm">Rp</p>
-            <input
-              type="number"
-              name="harga_modal"
-              id="harga_modal"
-              className="outline-0 w-full text-sm"
-              placeholder="8000"
-              min="0"
-              step="1"
-            />
-          </div>
-        </label>
+        
 
         {/* Harga Jual */}
         <label htmlFor="harga_jual" className="flex flex-col space-y-1">

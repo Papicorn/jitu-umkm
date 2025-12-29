@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { kurangiStokProdukPOS } from "@/lib/konsinyasiStorage";
+import Link from "next/link"
 
 interface Produk {
   id: number;
@@ -248,8 +249,9 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
       )}
 
       <div className="grid grid-cols-3 gap-4">
-        {filteredProdukList.map((p) => (
-          <label key={p.id} htmlFor={`produk-${p.id}`} className="block">
+        {filteredProdukList.filter((p) => p.stok != 0 ).length > 0 ? (
+          filteredProdukList.filter((p) => p.stok != 0).map((p) => (
+            <label key={p.id} htmlFor={`produk-${p.id}`} className="block">
             <input
               type="checkbox"
               id={`produk-${p.id}`}
@@ -285,7 +287,11 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
               </div>
             </div>
           </label>
-        ))}
+        ))) : (
+          <div className="col-span-3 text-center text-zinc-500 py-6">
+            Produk habis semua<br /><Link href="/produk/pos" className="text-[#FFCA40] font-bold">Tambah stok disini</Link>
+          </div>
+        )}
       </div>
 
       {cart.length > 0 && (

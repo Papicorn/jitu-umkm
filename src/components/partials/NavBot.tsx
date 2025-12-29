@@ -61,7 +61,7 @@ export default function NavBot() {
                   <div className="relative h-7 mb-2">
                     <Image src="/assets/image/transaksi.svg" alt="Transaksi icon" fill />
                   </div>
-                  <p>Transaksi</p>
+                  <p>Kasir</p>
                 </div>
               </div>
             </Link>

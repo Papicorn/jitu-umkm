@@ -11,12 +11,12 @@ export default function NavigationDashboard() {
           </div>
           Bahan Baku
         </div>
-        <div className="text-center text-zinc-700">
+        <Link href="/laporan" div className="text-center text-zinc-700">
           <div className="h-8 relative mb-2">
             <Image src={`assets/image/catat_keuangan.svg`} className="mx-auto object-center" alt="catat keuangan" fill />
           </div>
           Catat Keuangan
-        </div>
+        </Link>
         <Link href="/" className="text-center text-zinc-700">
           <div className="h-8 relative mb-2">
             <Image src={`assets/image/lainnya.svg`} className="mx-auto object-center" alt="lainnya" fill />

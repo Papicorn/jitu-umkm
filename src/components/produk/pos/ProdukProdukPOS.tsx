@@ -166,17 +166,6 @@ export default function ProdukProdukPOS() {
                 />
               </label>
 
-              <label className="flex flex-col space-y-1">
-                <span>Deskripsi</span>
-                <textarea
-                  name="deskripsi"
-                  rows={3}
-                  className="bg-[#F4F7FE] rounded-lg px-3 py-2 outline-0"
-                  value={formState.deskripsi || ""}
-                  onChange={handleChange}
-                />
-              </label>
-
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col space-y-1">
                   <span>Kategori</span>
@@ -200,36 +189,20 @@ export default function ProdukProdukPOS() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col space-y-1">
-                  <span>Harga Jual</span>
-                  <div className="bg-[#F4F7FE] rounded-lg px-3 py-2 flex items-center">
-                    <span className="text-xs mr-1">Rp</span>
-                    <input
-                      type="number"
-                      min={0}
-                      name="harga_jual"
-                      className="flex-1 bg-transparent outline-0 text-right"
-                      value={formState.harga_jual}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </label>
-                <label className="flex flex-col space-y-1">
-                  <span>HPP</span>
-                  <div className="bg-[#F4F7FE] rounded-lg px-3 py-2 flex items-center">
-                    <span className="text-xs mr-1">Rp</span>
-                    <input
-                      type="number"
-                      min={0}
-                      name="harga_modal"
-                      className="flex-1 bg-transparent outline-0 text-right"
-                      value={formState.harga_modal || 0}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </label>
+            <label className="flex flex-col space-y-1">
+              <span>Harga Jual</span>
+              <div className="bg-[#F4F7FE] rounded-lg px-3 py-2 flex items-center">
+                <span className="text-xs mr-1">Rp</span>
+                <input
+                  type="number"
+                  min={0}
+                  name="harga_jual"
+                  className="flex-1 bg-transparent outline-0"
+                  value={formState.harga_jual}
+                  onChange={handleChange}
+                />
               </div>
+            </label>
 
               <label className="flex flex-col space-y-1">
                 <span>Stok</span>
