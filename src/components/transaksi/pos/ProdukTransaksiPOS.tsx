@@ -279,7 +279,7 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
                   {p.stok ?? 0}
                 </div>
               </div>
-              <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
+              <div className="py-2 px-2 space-y-1 grow text-sm">
                 <p className="text-zinc-700 leading-4">{p.nama_produk}</p>
                 <p className="font-bold text-zinc-700">
                   {formatCurrency(p.harga_jual)}
@@ -419,7 +419,7 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
             <button
               type="button"
               onClick={handleOpenPayment}
-              className="w-full bg-[#FFCA40] rounded-xl border border-zinc-900 py-3 font-semibold text-sm"
+              className="w-full bg-[#FFCA40] text-zinc-700 rounded-xl border border-zinc-900 py-3 font-semibold text-sm"
             >
               Bayar
             </button>
@@ -432,7 +432,7 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
           <div className="w-full max-w-sm space-y-4">
             <div className="bg-white rounded-3xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-sm">Rincian Pesanan</p>
+                <p className="font-semibold text-sm text-zinc-700">Rincian Pesanan</p>
                 <button
                   type="button"
                   onClick={() => setCurrentStep("detail")}
@@ -448,7 +448,7 @@ function simpanTransaksiPOS(transaksi: PosTransaksi) {
               </div>
             </div>
             <div className="bg-white rounded-3xl p-4 space-y-3">
-              <p className="text-sm font-semibold text-center">
+              <p className="text-sm font-semibold text-center text-zinc-700">
                 Metode Pembayaran
               </p>
               <button

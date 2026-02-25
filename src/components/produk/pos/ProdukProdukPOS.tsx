@@ -109,7 +109,7 @@ export default function ProdukProdukPOS() {
                   {p.stok}
                 </div>
               </div>
-              <div className="py-2 px-2 space-y-1 flex flex-wrap grow text-sm">
+              <div className="py-2 px-2 space-y-1 grow text-sm">
                 <p className="text-zinc-700 leading-4">{p.nama_produk}</p>
                 <p className="font-bold text-zinc-700">
                   Rp{Number(p.harga_jual || 0).toLocaleString("id-ID")}

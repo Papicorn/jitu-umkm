@@ -36,7 +36,7 @@ export default function ButtonNavigation() {
                         </div>
                     </div>
                     </Link>
-                    <Link href="/laporan/konsinyasi">
+                    <Link href="/">
                     <div className="bg-white rounded-lg shadow-sm border border-[#F92424] px-4 py-4 text-sm text-zinc-800">
                         <div className="flex flex-row">
                             <div className="relative w-5.5 mr-3">
